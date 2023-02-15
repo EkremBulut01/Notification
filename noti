@@ -1,0 +1,208 @@
+import React, {Fragment, useEffect} from 'react';
+
+import firebase from '@react-native-firebase/app';
+import messaging from '@react-native-firebase/messaging';
+import '@react-native-firebase/messaging';
+import PushNotification, {Importance} from 'react-native-push-notification';
+import {Platform} from 'react-native';
+import PushNotificationIOS from '@react-native-community/push-notification-ios';
+import {FirebaseMessagingTypes} from '@react-native-firebase/messaging';
+import {StatusBar, AsyncStorage} from 'react-native';
+import {ThemeProvider} from './src/components';
+import {Provider} from 'react-redux';
+import {Provider as PaperProvider} from 'react-native-paper';
+import './src/config/ReactotronConfig';
+import NavigationService from './src/utils/navigation';
+import ApplicationNavigator from './src/routes';
+import NetinfoNavigator from './src/routes/netinfo';
+import AppTheme from './src/styles';
+import {NavigationContainer} from '@react-navigation/native';
+import {darkColors, getThemeLight} from './src/components/config/colors';
+import {useNetInfo} from '@react-native-community/netinfo';
+import {strings, changelang, baseurl} from './src/lang/_i18n';
+import SplashScreen from 'react-native-splash-screen';
+import {mainStack, homeDrawer} from './src/config/navigator';
+const App = () => {
+  const [hideSplash, setHideSplash] = React.useState(false);
+  React.useEffect(() => {
+    setHideSplash(true);
+  }, []);
+
+  React.useEffect(() => {
+    hideSplash && SplashScreen.hide();
+  }, [hideSplash]);
+
+  const getToken = () => {
+    firebase
+      .messaging()
+      .getToken(firebase.app().options.messagingSenderId)
+      .then(x => AsyncStorage.setItem("pushid", x))
+      .catch(e => console.log(e));
+
+  };
+  PushNotification.createChannel(
+    {
+      channelId: "fcm_fallback_notification_channel", // (required)
+      channelName: "ShipEntegra", // (required)
+      channelDescription: "ShipEntegra Notifications", // (optional) default: undefined.
+      playSound: true, // (optional) default: true
+      soundName: "default", // (optional) See `soundName` parameter of `localNotification` function
+      importance: Importance.HIGH, // (optional) default: Importance.HIGH. Int value of the Android notification importance
+      vibrate: true, // (optional) default: true. Creates the default vibration pattern if true.
+    },
+    (created) => console.log(`createChannel returned '${created}'`) // (optional) callback returns whether the channel was created, false means it already existed.
+  );
+  PushNotification.createChannel(
+    {
+      channelId: "neworder_channel", // (required)
+      channelName: "ShipEntegra New Order", // (required)
+      channelDescription: "ShipEntegra New Order Notifications", // (optional) default: undefined.
+      playSound: true, // (optional) default: true
+      soundName: "new_order.mp3", // (optional) See `soundName` parameter of `localNotification` function
+      importance: Importance.HIGH, // (optional) default: Importance.HIGH. Int value of the Android notification importance
+      vibrate: true, // (optional) default: true. Creates the default vibration pattern if true.
+    },
+    (created) => console.log(`createChannel returned '${created}'`) // (optional) callback returns whether the channel was created, false means it already existed.
+  );
+  PushNotification.createChannel(
+    {
+      channelId: "delivered_channel", // (required)
+      channelName: "ShipEntegra Delivered Order", // (required)
+      channelDescription: "ShipEntegra Delivered Order Notifications", // (optional) default: undefined.
+      playSound: true, // (optional) default: true
+      soundName: "order_delivered.mp3", // (optional) See `soundName` parameter of `localNotification` function
+      importance: Importance.HIGH, // (optional) default: Importance.HIGH. Int value of the Android notification importance
+      vibrate: true, // (optional) default: true. Creates the default vibration pattern if true.
+    },
+    (created) => console.log(`createChannel returned '${created}'`) // (optional) callback returns whether the channel was created, false means it already existed.
+  );
+  PushNotification.createChannel(
+    {
+      channelId: "accepted_channel", // (required)
+      channelName: "ShipEntegra Accepted Order", // (required)
+      channelDescription: "ShipEntegra Accepted Order Notifications", // (optional) default: undefined.
+      playSound: true, // (optional) default: true
+      soundName: "scan_order.mp3", // (optional) See `soundName` parameter of `localNotification` function
+      importance: Importance.HIGH, // (optional) default: Importance.HIGH. Int value of the Android notification importance
+      vibrate: true, // (optional) default: true. Creates the default vibration pattern if true.
+    },
+    (created) => console.log(`createChannel returned '${created}'`) // (optional) callback returns whether the channel was created, false means it already existed.
+  );
+  const registerForRemoteMessages = () => {
+    firebase
+      .messaging()
+      .registerDeviceForRemoteMessages()
+      .then(() => {
+        console.log('Registered');
+        requestPermissions();
+      })
+      .catch(e => console.log(e));
+  };
+  PushNotification.configure({
+    onNotification(notification) {
+      console.log(notification);
+      var nottype = notification.data.actionId;
+      var notid = notification.data.id;
+      // AsyncStorage.setItem("actionId", nottype);
+      // AsyncStorage.setItem("orderId", notid);
+      console.log(nottype);
+      
+      if (nottype == 'order.created') {
+        NavigationService.navigate(mainStack.gonderidetay, {
+          orderid: notid,
+        });
+      }
+      if (nottype == 'orders.created') {
+        NavigationService.navigate(mainStack.bekleyengonderiler);
+      }
+      if (nottype == 'order.accepted') {
+        NavigationService.navigate(mainStack.gonderidetay, {
+          orderid: notid,
+        });
+      }
+      if (nottype == 'orders.accepted') {
+        NavigationService.navigate(mainStack.onayligonderiler);
+      }
+      if (nottype == 'order.delivered') {
+        NavigationService.navigate(mainStack.gonderidetay, {
+          orderid: notid,
+        });
+      }
+      if (nottype == 'orders.delivered') {
+        NavigationService.navigate(mainStack.shipentegragonderidurumlari);
+      }
+      if (nottype == 'payment.accepted') {
+        NavigationService.navigate(homeDrawer.bakiye);
+      }
+      if (nottype == 'support.responded') {
+        NavigationService.navigate(mainStack.talepdetay, {id: notid});
+      }
+      if (nottype == 'cargo.reached') {
+        NavigationService.navigate(mainStack.gonderidetay, {
+          orderid: notid,
+        });
+      }
+      if (nottype == 'cargos.reached') {
+        NavigationService.navigate(mainStack.etiketbasilan);
+      }
+      if (nottype == 'general.info') {
+        NavigationService.navigate(mainStack.bildirimdetay, {id: notid});
+      }
+    },
+  });
+  const requestPermissions = () => {
+    firebase
+      .messaging()
+      .requestPermission()
+      .then((status: FirebaseMessagingTypes.AuthorizationStatus) => {
+        if (status === 1) {
+          //console.log('Authorized');
+          onMessage();
+        } else {
+          //console.log('Not authorized');
+        }
+      })
+      .catch(e => console.log(e));
+  };
+  const onMessage = () => {
+    firebase.messaging().onMessage(response => {
+      showNotification(response.notification);
+    });
+  };
+  const showNotification = (notification: any) => {
+    console.log(notification);
+    PushNotification.localNotification({
+      title: notification.title,
+      message: notification.body,
+    });
+  };getToken();
+  if (Platform.OS === 'ios') {
+    registerForRemoteMessages();
+  } else {
+    onMessage();
+  }
+
+
+    //this.props.theme='light';
+    const themeColor = 'light' === 'light' ? getThemeLight() : darkColors;
+    const barStyle = 'light' === 'light-content' ? 'dark-content' : 'light-content';
+    const netInfo = useNetInfo();
+  return <NavigationContainer
+        ref={navigationRef =>
+          NavigationService.setTopLevelNavigator(navigationRef)
+        }>
+        <ThemeProvider theme={themeColor}>
+          <PaperProvider>
+            <StatusBar
+              translucent
+              barStyle={'light-content'}
+              backgroundColor="transparent"
+            />
+            {netInfo.isConnected?<ApplicationNavigator />:<NetinfoNavigator />}
+          </PaperProvider>
+        </ThemeProvider>
+  </NavigationContainer>;
+};
+
+console.disableYellowBox = true;
+export default App;
